@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cookie Generator</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 350px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #333;
+      background: #f8f9fa;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2196F3;
+      text-align: center;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .url-input {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      resize: vertical;
+      font-size: 13px;
+      font-family: monospace;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #2196F3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #2196F3;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      min-width: 100px;
+    }
+    
+    button:hover {
+      background: #1976D2;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #start {
+      background: #4CAF50;
+    }
+
+    #start:hover {
+      background: #388E3C;
+    }
+
+    #stop {
+      background: #f44336;
+    }
+
+    #stop:hover {
+      background: #d32f2f;
+    }
+    
+    .status {
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      margin-top: 10px;
+      padding: 15px;
+      border-radius: 6px;
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+    }
+
+    .status.running {
+      background: #E8F5E9;
+      color: #2E7D32;
+      border-color: #A5D6A7;
+    }
+
+    .status.stopped {
+      background: #FFEBEE;
+      color: #C62828;
+      border-color: #FFCDD2;
+    }
+
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: #2196F3;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 12px;
+    }
+
+    .url-count {
+      font-size: 12px;
+      color: #666;
+      text-align: right;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">Cookie Generator</div>
+    <div class="url-input">
+      <textarea id="urlList" placeholder="Nhập danh sách URL, mỗi URL một dòng"></textarea>
+      <div class="url-count">Số URL: <span id="urlCount">0</span></div>
+    </div>
+    <div class="button-group">
+      <button id="start">Bắt đầu</button>
+      <button id="stop">Dừng</button>
+    </div>
+    <div id="status" class="status">Sẵn sàng</div>
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-value" id="processedCount">0</span>
+        <span class="stat-label">Đã xử lý</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="errorCount">0</span>
+        <span class="stat-label">Lỗi</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="remainingCount">0</span>
+        <span class="stat-label">Còn lại</span>
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

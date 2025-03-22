@@ -1,0 +1,25 @@
+[
+    {
+      "id": 1,
+      "priority": 1,
+      "action": {
+        "type": "block"
+      },
+      "condition": {
+        "resourceTypes": ["image", "media", "video", "audio", "font", "websocket", "other"],
+        "urlFilter": "*",
+        "excludedInitiatorDomains": ["chrome-extension://*"]
+      }
+    },
+    {
+      "id": 2,
+      "priority": 1,
+      "action": {
+        "type": "block"
+      },
+      "condition": {
+        "urlFilter": "*.jpg|*.jpeg|*.png|*.gif|*.webp|*.svg|*.mp4|*.webm|*.mp3|*.wav|*.ogg|*.ttf|*.woff|*.woff2|*.eot|*.otf",
+        "resourceTypes": ["image", "media", "video", "audio", "font"]
+      }
+    }
+  ]
