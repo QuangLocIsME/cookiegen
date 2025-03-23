@@ -215,6 +215,77 @@
     .hidden {
       display: none;
     }
+
+    .section {
+      margin-top: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+
+    .form-group.checkbox {
+      display: flex;
+      align-items: center;
+    }
+
+    .form-group.checkbox input {
+      margin-right: 10px;
+    }
+
+    .form-group button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #2196F3;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      min-width: 100px;
+    }
+
+    .form-group button:hover {
+      background: #1976D2;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .form-group button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .form-group button.secondary {
+      background: #666;
+    }
+
+    .form-group button.action {
+      background: #4CAF50;
+    }
+
+    .form-group button.action:hover {
+      background: #388E3C;
+    }
+
+    .full-width {
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -256,6 +327,21 @@
       <div class="stat-item">
         <span class="stat-value" id="remainingCount">0</span>
         <span class="stat-label">Còn lại</span>
+      </div>
+    </div>
+    <div class="section">
+      <h3>Discord Webhook</h3>
+      <div class="form-group">
+        <label for="webhookUrl">Discord Webhook URL:</label>
+        <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." class="full-width">
+      </div>
+      <div class="form-group checkbox">
+        <input type="checkbox" id="autoExportToDiscord">
+        <label for="autoExportToDiscord">Tự động gửi cookie đến Discord</label>
+      </div>
+      <div class="form-group">
+        <button id="testWebhook" class="secondary">Kiểm tra webhook</button>
+        <button id="exportNow" class="action">Xuất cookie trang hiện tại</button>
       </div>
     </div>
   </div>

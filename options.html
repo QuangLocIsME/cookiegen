@@ -284,9 +284,19 @@
             <input type="checkbox" id="blockMediaToggle">
             <label for="blockMediaToggle">Chặn media (ảnh, video)</label>
           </div>
-          <div class="checkbox-group">
-            <input type="checkbox" id="activeTabToggle">
-            <label for="activeTabToggle">Hiển thị tab đang xử lý</label>
+          <div class="toggle-container">
+            <label class="toggle">
+              <input type="checkbox" id="activeTabToggle">
+              <span class="slider round"></span>
+            </label>
+            <span class="toggle-label">Hiển thị tab đang hoạt động</span>
+          </div>
+          <div class="toggle-container">
+            <label class="toggle">
+              <input type="checkbox" id="keepTabOpenToggle">
+              <span class="slider round"></span>
+            </label>
+            <span class="toggle-label">Giữ tab mở sau khi xử lý xong</span>
           </div>
         </div>
       </div>
@@ -334,41 +344,73 @@
   
   <section id="ai-settings" class="settings-section">
     <h2>Tùy chọn AI & Mô phỏng</h2>
-    <div class="option-row">
-      <label for="enable-human-simulation">Bật mô phỏng hành vi người dùng:</label>
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="enable-human-simulation" checked>
-        <label for="enable-human-simulation" class="toggle"></label>
+    <div class="setting-row">
+      <div class="setting-label">Mô phỏng hành vi người dùng</div>
+      <div class="setting-control">
+        <label class="toggle">
+          <input type="checkbox" id="enable-human-simulation" checked>
+          <span class="slider round"></span>
+        </label>
       </div>
     </div>
-    <div class="option-row">
-      <label for="simulation-intensity">Mức độ mô phỏng:</label>
-      <select id="simulation-intensity">
-        <option value="low">Thấp (ít tương tác)</option>
-        <option value="medium" selected>Trung bình</option>
-        <option value="high">Cao (nhiều tương tác, điền form)</option>
-      </select>
-    </div>
-    <div class="option-row">
-      <label for="simulation-time">Thời gian mô phỏng (giây):</label>
-      <input type="range" id="simulation-time" min="10" max="60" value="25" class="slider">
-      <span id="simulation-time-value">25</span>
-    </div>
-    <div class="option-row">
-      <label for="fill-forms">Tự động điền form:</label>
-      <div class="toggle-wrapper">
-        <input type="checkbox" id="fill-forms" checked>
-        <label for="fill-forms" class="toggle"></label>
+
+    <div class="setting-row">
+      <div class="setting-label">Cường độ mô phỏng</div>
+      <div class="setting-control">
+        <select id="simulation-intensity" class="dropdown">
+          <option value="low">Thấp (Nhanh)</option>
+          <option value="medium" selected>Trung bình</option>
+          <option value="high">Cao (Chậm)</option>
+          <option value="ultra">Siêu thực (Rất chậm)</option>
+        </select>
       </div>
     </div>
-    <p class="setting-description">Mô phỏng hành vi người dùng giúp giảm nguy cơ bị phát hiện là bot bằng cách tạo ra các tương tác giống người thật như di chuyển chuột, cuộn trang, và điền form một cách tự nhiên.</p>
+
+    <div class="setting-row">
+      <div class="setting-label">Thời gian mô phỏng (giây)</div>
+      <div class="setting-control">
+        <input type="range" min="10" max="60" value="30" id="simulation-time" class="slider">
+        <span id="simulation-time-value">30</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">Tự động điền biểu mẫu</div>
+      <div class="setting-control">
+        <label class="toggle">
+          <input type="checkbox" id="fill-forms" checked>
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">Kiểu di chuyển chuột</div>
+      <div class="setting-control">
+        <select id="mouse-movement" class="dropdown">
+          <option value="natural" selected>Tự nhiên (Đường cong)</option>
+          <option value="linear">Tuyến tính</option>
+          <option value="none">Không hiệu ứng</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div class="setting-label">Hành vi cuộn trang</div>
+      <div class="setting-control">
+        <select id="scroll-behavior" class="dropdown">
+          <option value="natural" selected>Tự nhiên</option>
+          <option value="random">Ngẫu nhiên</option>
+          <option value="minimal">Tối thiểu</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-description">
+      Mô phỏng hành vi người dùng giúp giảm nguy cơ bị phát hiện là bot bằng cách bắt chước tương tác thực như di chuyển chuột và điền biểu mẫu. Cường độ cao hơn sẽ thực tế hơn nhưng mất nhiều thời gian hơn.
+    </div>
   </section>
   
   <script src="options.js"></script>
-  <script>
-    document.getElementById('simulation-time').addEventListener('input', function() {
-      document.getElementById('simulation-time-value').textContent = this.value;
-    });
-  </script>
 </body>
 </html>

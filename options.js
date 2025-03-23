@@ -16,12 +16,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const errorElement = document.getElementById("error");
   const errorCountElement = document.getElementById("errorCount");
   const stepDetailsElement = document.getElementById("stepDetails");
+  const keepTabOpenToggle = document.getElementById("keepTabOpenToggle");
 
   // Kiểm tra các phần tử có tồn tại không
   if (!settingsToggle || !settingsPanel || !blockMediaToggle || !activeTabToggle || 
       !startButton || !pauseButton || !stopButton || !exportButton || !urlInput || 
       !statusElement || !currentUrlElement || !progressElement || !progressFillElement || 
-      !errorElement || !errorCountElement || !stepDetailsElement) {
+      !errorElement || !errorCountElement || !stepDetailsElement || !keepTabOpenToggle) {
     console.error("Không thể tìm thấy các phần tử UI cần thiết");
     showError("Lỗi: Không thể tải giao diện người dùng");
     return;
@@ -52,15 +53,16 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Đọc và áp dụng cài đặt từ storage
-  chrome.storage.local.get(["blockMedia", "showActiveTab"], (result) => {
+  chrome.storage.local.get(["blockMedia", "showActiveTab", "keepTabOpen"], (result) => {
     if (chrome.runtime.lastError) {
       console.error("Lỗi khi tải cài đặt:", chrome.runtime.lastError);
       showError("Không thể tải cài đặt");
       return;
     }
     
-    blockMediaToggle.checked = result.blockMedia !== false;
+    blockMediaToggle.checked = result.blockMedia === true;
     activeTabToggle.checked = result.showActiveTab === true;
+    keepTabOpenToggle.checked = result.keepTabOpen === true;
   });
 
   // Lưu cài đặt khi thay đổi
@@ -89,6 +91,21 @@ document.addEventListener("DOMContentLoaded", () => {
         chrome.runtime.sendMessage({ 
           action: "update_settings", 
           settings: { showActiveTab: activeTabToggle.checked } 
+        });
+      }
+    });
+  });
+
+  keepTabOpenToggle.addEventListener("change", () => {
+    chrome.storage.local.set({ keepTabOpen: keepTabOpenToggle.checked }, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Lỗi khi lưu cài đặt:", chrome.runtime.lastError);
+        showError("Không thể lưu cài đặt");
+        keepTabOpenToggle.checked = !keepTabOpenToggle.checked;
+      } else {
+        chrome.runtime.sendMessage({ 
+          action: "update_settings", 
+          settings: { keepTabOpen: keepTabOpenToggle.checked } 
         });
       }
     });
@@ -151,6 +168,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Tải danh sách URLs đã lưu
+  chrome.storage.local.get("urls", (result) => {
+    if (chrome.runtime.lastError) {
+      console.error("Lỗi khi tải danh sách URLs:", chrome.runtime.lastError);
+      return;
+    }
+    
+    if (result.urls && Array.isArray(result.urls) && result.urls.length > 0) {
+      urlInput.value = result.urls.join("\n");
+      console.log("Đã tải " + result.urls.length + " URLs từ storage");
+    }
+  });
+
   // Chức năng bắt đầu quét
   startButton.addEventListener("click", () => {
     if (!urlInput) {
@@ -182,10 +212,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       
-      chrome.runtime.sendMessage({ action: "start_visits" }, response => {
+      chrome.runtime.sendMessage({ 
+        action: "start_visits",
+        urls: urls  // Thêm danh sách URLs vào message
+      }, response => {
         if (chrome.runtime.lastError) {
           console.error("Lỗi khi gửi tin nhắn:", chrome.runtime.lastError);
           showError("Không thể bắt đầu quét");
+        } else if (response && !response.success) {
+          showError(response.error || "Không thể bắt đầu quét");
         }
       });
     });
@@ -269,4 +304,195 @@ document.addEventListener("DOMContentLoaded", () => {
       showMessage('Đã lưu thiết lập.', 'success');
     });
   }
+
+  // Kiểm tra tab hoạt động từ storage
+  chrome.storage.local.get(['activeOptionsTab'], (result) => {
+    if (chrome.runtime.lastError) {
+      console.error("Lỗi khi tải tab hoạt động:", chrome.runtime.lastError);
+      return;
+    }
+    
+    if (result.activeOptionsTab) {
+      console.log(`Mở tab được chỉ định: ${result.activeOptionsTab}`);
+      
+      // Kích hoạt tab tương ứng
+      if (result.activeOptionsTab === 'cookies') {
+        // Chuyển sang tab cookie nếu được yêu cầu
+        document.getElementById('cookiesTab').click();
+      }
+      
+      // Xóa thông tin tab hoạt động sau khi sử dụng
+      chrome.storage.local.remove(['activeOptionsTab'], () => {
+        console.log("Đã xóa thông tin tab hoạt động");
+      });
+    }
+  });
+
+  // Phần tử AI settings
+  const enableHumanSimulationToggle = document.getElementById("enable-human-simulation");
+  const simulationIntensitySelect = document.getElementById("simulation-intensity");
+  const simulationTimeSlider = document.getElementById("simulation-time");
+  const simulationTimeValue = document.getElementById("simulation-time-value");
+  const fillFormsToggle = document.getElementById("fill-forms");
+  const mouseMovementSelect = document.getElementById("mouse-movement");
+  const scrollBehaviorSelect = document.getElementById("scroll-behavior");
+
+  // Cập nhật giá trị time slider khi thay đổi
+  if (simulationTimeSlider) {
+    simulationTimeSlider.addEventListener("input", () => {
+      if (simulationTimeValue) {
+        simulationTimeValue.textContent = simulationTimeSlider.value;
+      }
+    });
+  }
+
+  // Lưu cài đặt AI khi thay đổi
+  function saveAISettings() {
+    const settings = {
+      enableHumanSimulation: enableHumanSimulationToggle?.checked || true,
+      simulationIntensity: simulationIntensitySelect?.value || 'medium',
+      simulationTime: parseInt(simulationTimeSlider?.value || 30),
+      fillForms: fillFormsToggle?.checked || true,
+      mouseMovement: mouseMovementSelect?.value || 'natural',
+      scrollBehavior: scrollBehaviorSelect?.value || 'natural'
+    };
+
+    chrome.storage.local.set(settings, () => {
+      if (chrome.runtime.lastError) {
+        console.error("Lỗi khi lưu cài đặt AI:", chrome.runtime.lastError);
+        showError("Không thể lưu cài đặt AI");
+      } else {
+        console.log("Đã lưu cài đặt AI:", settings);
+      }
+    });
+  }
+
+  // Lắng nghe sự kiện thay đổi cho các phần tử AI settings
+  if (enableHumanSimulationToggle) {
+    enableHumanSimulationToggle.addEventListener("change", saveAISettings);
+  }
+  if (simulationIntensitySelect) {
+    simulationIntensitySelect.addEventListener("change", saveAISettings);
+  }
+  if (simulationTimeSlider) {
+    simulationTimeSlider.addEventListener("change", saveAISettings); // Chỉ lưu khi người dùng thả thanh trượt
+  }
+  if (fillFormsToggle) {
+    fillFormsToggle.addEventListener("change", saveAISettings);
+  }
+  if (mouseMovementSelect) {
+    mouseMovementSelect.addEventListener("change", saveAISettings);
+  }
+  if (scrollBehaviorSelect) {
+    scrollBehaviorSelect.addEventListener("change", saveAISettings);
+  }
+
+  // Tải cài đặt AI từ storage khi trang được tải
+  function loadAISettings() {
+    chrome.storage.local.get([
+      "enableHumanSimulation",
+      "simulationIntensity",
+      "simulationTime",
+      "fillForms",
+      "mouseMovement",
+      "scrollBehavior"
+    ], (result) => {
+      if (chrome.runtime.lastError) {
+        console.error("Lỗi khi tải cài đặt AI:", chrome.runtime.lastError);
+        showError("Không thể tải cài đặt AI");
+        return;
+      }
+
+      // Áp dụng cài đặt đã lưu
+      if (enableHumanSimulationToggle && result.enableHumanSimulation !== undefined) {
+        enableHumanSimulationToggle.checked = result.enableHumanSimulation;
+      }
+      if (simulationIntensitySelect && result.simulationIntensity) {
+        simulationIntensitySelect.value = result.simulationIntensity;
+      }
+      if (simulationTimeSlider && result.simulationTime) {
+        simulationTimeSlider.value = result.simulationTime;
+        if (simulationTimeValue) {
+          simulationTimeValue.textContent = result.simulationTime;
+        }
+      }
+      if (fillFormsToggle && result.fillForms !== undefined) {
+        fillFormsToggle.checked = result.fillForms;
+      }
+      if (mouseMovementSelect && result.mouseMovement) {
+        mouseMovementSelect.value = result.mouseMovement;
+      }
+      if (scrollBehaviorSelect && result.scrollBehavior) {
+        scrollBehaviorSelect.value = result.scrollBehavior;
+      }
+
+      console.log("Đã tải cài đặt AI:", result);
+    });
+  }
+
+  // Tải cài đặt AI khi trang được tải
+  loadAISettings();
+  
+  // Thêm event listener cho input simulation-time
+  if (simulationTimeSlider) {
+    simulationTimeSlider.addEventListener('input', function() {
+      const simulationTimeValue = document.getElementById('simulation-time-value');
+      if (simulationTimeValue) {
+        simulationTimeValue.textContent = this.value;
+      }
+    });
+  }
+
+  // Thêm sự kiện cho nút lưu cài đặt AI
+  const saveAISettingsButton = document.getElementById("save-ai-settings");
+  if (saveAISettingsButton) {
+    saveAISettingsButton.addEventListener("click", () => {
+      saveAISettings();
+      showMessage('Đã lưu cài đặt AI.', 'success');
+    });
+  }
+  
+  // Thêm hàm để bật/tắt mô phỏng người dùng ngay khi chuyển toggle
+  if (enableHumanSimulationToggle) {
+    enableHumanSimulationToggle.addEventListener("change", function() {
+      const isEnabled = this.checked;
+      console.log(`Mô phỏng người dùng đã được ${isEnabled ? 'BẬT' : 'TẮT'}`);
+      
+      // Ẩn hiện các tùy chọn khác dựa trên trạng thái toggle
+      const simulationOptions = document.querySelectorAll('.simulation-option');
+      simulationOptions.forEach(option => {
+        option.style.opacity = isEnabled ? '1' : '0.5';
+        const inputs = option.querySelectorAll('input, select');
+        inputs.forEach(input => {
+          input.disabled = !isEnabled;
+        });
+      });
+      
+      // Lưu cài đặt ngay lập tức
+      saveAISettings();
+    });
+  }
+  
+  // Thêm hàm để kiểm tra trạng thái toggle khi tải trang
+  function updateSimulationOptionsVisibility() {
+    if (enableHumanSimulationToggle) {
+      const isEnabled = enableHumanSimulationToggle.checked;
+      const simulationOptions = document.querySelectorAll('.simulation-option');
+      simulationOptions.forEach(option => {
+        option.style.opacity = isEnabled ? '1' : '0.5';
+        const inputs = option.querySelectorAll('input, select');
+        inputs.forEach(input => {
+          input.disabled = !isEnabled;
+        });
+      });
+    }
+  }
+  
+  // Gọi hàm cập nhật hiển thị sau khi tải cài đặt
+  document.addEventListener('DOMContentLoaded', () => {
+    loadAISettings();
+    
+    // Đợi một chút để đảm bảo cài đặt đã được áp dụng
+    setTimeout(updateSimulationOptionsVisibility, 500);
+  });
 });

@@ -529,4 +529,229 @@
 
   // Thêm vào object window
   window.Humanize = Humanize;
+
+  // Mở rộng cấu hình mặc định với các tùy chọn mới
+  const defaultConfig = {
+    mouseMoveSpeed: 800,    // px/giây
+    mouseJitter: 100,       // px
+    typingSpeed: 150,       // ms giữa các ký tự
+    typingErrors: 0.05,     // tỷ lệ lỗi đánh máy (5%)
+    clickDelay: 200,        // ms trước khi click
+    pauseProbability: 0.2,  // xác suất tạm dừng (20%)
+    pauseDuration: [500, 1500], // phạm vi thời gian tạm dừng
+    naturalCurve: true,     // di chuyển chuột tự nhiên
+    scrollSpeed: 1000,      // tốc độ cuộn (px/giây)
+    scrollStyle: 'smooth',  // kiểu cuộn (smooth, stepped, instant)
+    readingPauseProbability: 0.3, // xác suất tạm dừng khi đọc
+    readingPauseDuration: [1000, 3000], // thời gian tạm dừng khi đọc
+    attentionPoints: [],    // điểm chú ý tùy chỉnh
+    activityProfile: 'balanced', // hồ sơ hoạt động (casual, balanced, focused)
+    adaptiveTiming: true    // điều chỉnh thời gian dựa trên độ phức tạp của trang
+  };
+
+  /**
+   * Đặt một hồ sơ hoạt động cụ thể
+   * @param {string} profile - Loại hồ sơ hoạt động: 'casual', 'balanced', 'focused'
+   */
+  Humanize.setActivityProfile = function(profile) {
+    if (!profile) return;
+    
+    switch(profile.toLowerCase()) {
+      case 'casual':
+        this.configure({
+          mouseMoveSpeed: 600,
+          mouseJitter: 150,
+          typingSpeed: 200,
+          pauseProbability: 0.3,
+          pauseDuration: [800, 2000],
+          readingPauseProbability: 0.4,
+          readingPauseDuration: [1500, 4000],
+          scrollSpeed: 800
+        });
+        break;
+      case 'focused':
+        this.configure({
+          mouseMoveSpeed: 1000,
+          mouseJitter: 70,
+          typingSpeed: 100,
+          pauseProbability: 0.15,
+          pauseDuration: [300, 1000],
+          readingPauseProbability: 0.2,
+          readingPauseDuration: [500, 1500],
+          scrollSpeed: 1200
+        });
+        break;
+      case 'balanced':
+      default:
+        this.configure(defaultConfig);
+        break;
+    }
+  };
+
+  /**
+   * Cuộn đến một vị trí cụ thể theo kiểu tự nhiên
+   * @param {number} x - Vị trí cuộn theo trục X
+   * @param {number} y - Vị trí cuộn theo trục Y
+   * @param {Object} options - Tùy chọn cuộn bổ sung
+   * @returns {Promise} Promise hoàn thành khi cuộn xong
+   */
+  Humanize.scrollTo = async function(x, y, options = {}) {
+    const currentX = window.scrollX;
+    const currentY = window.scrollY;
+    const deltaX = x - currentX;
+    const deltaY = y - currentY;
+    
+    return this.scrollBy(deltaX, deltaY, options);
+  };
+
+  /**
+   * Cuộn đến một phần tử theo kiểu tự nhiên
+   * @param {HTMLElement} element - Phần tử cần cuộn đến
+   * @param {Object} options - Tùy chọn cuộn bổ sung
+   * @returns {Promise} Promise hoàn thành khi cuộn xong
+   */
+  Humanize.scrollToElement = async function(element, options = {}) {
+    if (!element) return Promise.resolve();
+    
+    const rect = element.getBoundingClientRect();
+    const scrollY = window.scrollY + rect.top - (options.offset || 100);
+    
+    return this.scrollTo(window.scrollX, scrollY, options);
+  };
+
+  /**
+   * Mô phỏng đọc nội dung
+   * @param {HTMLElement} element - Phần tử có nội dung để đọc
+   * @returns {Promise} Promise hoàn thành khi đọc xong
+   */
+  Humanize.readContent = async function(element) {
+    if (!element) return Promise.resolve();
+    
+    // Đảm bảo phần tử nhìn thấy được
+    await this.scrollToElement(element);
+    
+    // Tính thời gian đọc dựa trên độ dài nội dung
+    const content = element.textContent || '';
+    const wordCount = content.split(/\s+/).length;
+    const readingTimeMs = Math.min(wordCount * 200, 10000); // Trung bình 200ms mỗi từ, tối đa 10s
+    
+    // Mô phỏng việc di chuyển mắt bằng cách di chuyển chuột
+    const lines = Math.ceil(content.length / 50); // giả định 50 ký tự mỗi dòng
+    const rect = element.getBoundingClientRect();
+    const startX = rect.left + 20;
+    const startY = rect.top + 20;
+    const lineHeight = rect.height / Math.max(lines, 1);
+    
+    // Di chuyển chuột theo các dòng để mô phỏng đọc
+    let currentY = startY;
+    const linesToRead = Math.min(lines, 10); // Giới hạn số dòng để mô phỏng
+    
+    for (let i = 0; i < linesToRead; i++) {
+      // Di chuyển đến đầu dòng
+      await this.mouseMoveTo(startX, currentY);
+      
+      // Di chuyển qua dòng
+      await this.mouseMoveTo(startX + rect.width * 0.8, currentY);
+      
+      // Tạm dừng mô phỏng đọc
+      if (Math.random() < this.config.readingPauseProbability) {
+        const pauseTime = this._randomInt(
+          this.config.readingPauseDuration[0],
+          this.config.readingPauseDuration[1]
+        );
+        await new Promise(resolve => setTimeout(resolve, pauseTime));
+      }
+      
+      // Di chuyển xuống dòng tiếp theo
+      currentY += lineHeight;
+    }
+    
+    // Tạm dừng để mô phỏng thời gian đọc còn lại
+    await new Promise(resolve => setTimeout(resolve, readingTimeMs));
+    
+    return Promise.resolve();
+  };
+
+  /**
+   * Tương tác với một phần tử: di chuyển, hover và tùy chọn click
+   * @param {HTMLElement} element - Phần tử để tương tác
+   * @param {Object} options - Tùy chọn tương tác
+   * @returns {Promise} Promise hoàn thành khi tương tác xong
+   */
+  Humanize.interactWithElement = async function(element, options = {}) {
+    if (!element) return Promise.resolve();
+    
+    // Đặt tùy chọn mặc định
+    const opts = {
+      scroll: true,
+      click: false,
+      hoverTime: this._randomInt(300, 800),
+      ...options
+    };
+    
+    // Đảm bảo phần tử nhìn thấy được
+    if (opts.scroll) {
+      await this.scrollToElement(element);
+    }
+    
+    // Di chuyển đến phần tử
+    const rect = element.getBoundingClientRect();
+    const targetX = rect.left + rect.width / 2;
+    const targetY = rect.top + rect.height / 2;
+    
+    await this.mouseMoveTo(targetX, targetY);
+    
+    // Hover
+    await new Promise(resolve => setTimeout(resolve, opts.hoverTime));
+    
+    // Click nếu được yêu cầu
+    if (opts.click) {
+      await this.mouseClick();
+    }
+    
+    return Promise.resolve();
+  };
+
+  // Thêm một hàm tiện ích để tạo một chuỗi hành động phức tạp
+  Humanize.createActionSequence = function() {
+    const actions = [];
+    const sequence = {
+      addAction: function(action) {
+        actions.push(action);
+        return this;
+      },
+      moveTo: function(element) {
+        return this.addAction(() => Humanize.interactWithElement(element, { click: false }));
+      },
+      click: function(element) {
+        return this.addAction(() => Humanize.interactWithElement(element, { click: true }));
+      },
+      read: function(element) {
+        return this.addAction(() => Humanize.readContent(element));
+      },
+      type: function(element, text) {
+        return this.addAction(() => {
+          return Humanize.interactWithElement(element, { click: true })
+            .then(() => Humanize.type(text));
+        });
+      },
+      pause: function(min, max) {
+        const duration = max ? Humanize._randomInt(min, max) : min;
+        return this.addAction(() => new Promise(resolve => setTimeout(resolve, duration)));
+      },
+      scroll: function(deltaY) {
+        return this.addAction(() => Humanize.scrollBy(0, deltaY));
+      },
+      scrollToElement: function(element) {
+        return this.addAction(() => Humanize.scrollToElement(element));
+      },
+      execute: async function() {
+        for (const action of actions) {
+          await action();
+        }
+      }
+    };
+    
+    return sequence;
+  };
 })(window); 

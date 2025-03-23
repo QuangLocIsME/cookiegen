@@ -1,7 +1,8 @@
 // Cài đặt mặc định
 let settings = {
-  blockMedia: true,
+  blockMedia: false,
   showActiveTab: false,
+  keepTabOpen: false,
   delay: 2000 // Delay mặc định 2 giây
 };
 
@@ -83,7 +84,7 @@ function restoreState() {
 restoreState();
 
 // Tải cài đặt từ storage
-chrome.storage.local.get(["blockMedia", "showActiveTab", "delay"], (result) => {
+chrome.storage.local.get(["blockMedia", "showActiveTab", "keepTabOpen", "delay"], (result) => {
   if (chrome.runtime.lastError) {
     console.error("Lỗi khi tải cài đặt:", chrome.runtime.lastError);
     return;
@@ -91,6 +92,7 @@ chrome.storage.local.get(["blockMedia", "showActiveTab", "delay"], (result) => {
   
   if (result.blockMedia !== undefined) settings.blockMedia = result.blockMedia;
   if (result.showActiveTab !== undefined) settings.showActiveTab = result.showActiveTab;
+  if (result.keepTabOpen !== undefined) settings.keepTabOpen = result.keepTabOpen;
   if (result.delay !== undefined) settings.delay = result.delay;
   
   // Thiết lập chặn media dựa trên cài đặt
@@ -203,6 +205,38 @@ async function updateMediaBlocking(block) {
   }
 }
 
+// Hàm kiểm tra xem tab có tồn tại không
+async function tabExists(tabId) {
+  try {
+    // Lưu ý: khi tab không tồn tại, chrome.tabs.get sẽ ném lỗi
+    await chrome.tabs.get(tabId);
+    return true;
+  } catch (error) {
+    // Nếu có lỗi, tab không tồn tại
+    console.log(`Tab ${tabId} không tồn tại:`, error.message);
+    return false;
+  }
+}
+
+// Hàm gửi thông báo đến tab cụ thể, với kiểm tra trước
+async function sendMessageToTab(tabId, message) {
+  try {
+    // Kiểm tra xem tab có tồn tại không
+    const exists = await tabExists(tabId);
+    if (!exists) {
+      console.log(`Không thể gửi tin nhắn vì tab ${tabId} không tồn tại`);
+      return false;
+    }
+    
+    // Gửi tin nhắn đến tab
+    await chrome.tabs.sendMessage(tabId, message);
+    return true;
+  } catch (error) {
+    console.error(`Lỗi khi gửi tin nhắn đến tab ${tabId}:`, error.message);
+    return false;
+  }
+}
+
 /**
  * Xử lý URL tiếp theo trong danh sách
  */
@@ -286,13 +320,42 @@ async function processNextUrl() {
       try {
         console.log(`Cookie Generator: Gửi yêu cầu giả mạo đến tab ${tab.id} (lần thử ${retries + 1}/${maxRetries})`);
         
+        // Lấy cài đặt AI từ storage
+        const aiSettings = await new Promise((resolveSettings) => {
+          chrome.storage.local.get([
+            "enableHumanSimulation",
+            "simulationIntensity", 
+            "simulationTime",
+            "fillForms",
+            "mouseMovement",
+            "scrollBehavior",
+            "tempAISettings"
+          ], (result) => {
+            // Sử dụng tempAISettings nếu có sẵn, nếu không sử dụng các cài đặt riêng lẻ
+            const settings = result.tempAISettings || {
+              enableHumanSimulation: result.enableHumanSimulation !== undefined ? result.enableHumanSimulation : true,
+              simulationIntensity: result.simulationIntensity || 'medium',
+              simulationTime: result.simulationTime || 30,
+              fillForms: result.fillForms !== undefined ? result.fillForms : true,
+              mouseMovement: result.mouseMovement || 'natural',
+              scrollBehavior: result.scrollBehavior || 'natural'
+            };
+            
+            console.log("Cài đặt AI để gửi đến content script:", settings);
+            resolveSettings(settings);
+          });
+        });
+        
         // Thiết lập timeout cho việc gửi tin nhắn
         const spoofPromise = new Promise((resolve, reject) => {
           const timeoutId = setTimeout(() => {
             reject(new Error('Hết thời gian chờ phản hồi từ content script'));
           }, 10000); // 10 giây timeout
           
-          chrome.tabs.sendMessage(tab.id, { action: 'spoof_site' })
+          chrome.tabs.sendMessage(tab.id, { 
+            action: 'spoof_site',
+            settings: aiSettings  // Thêm cài đặt AI vào message
+          })
             .then(response => {
               clearTimeout(timeoutId);
               resolve(response);
@@ -425,14 +488,35 @@ async function processNextUrl() {
       // Vẫn tiếp tục xử lý các URL khác ngay cả khi không lưu được cookies
     }
     
-    // Đóng tab
+    // Thay vì đóng tab, chỉ đánh dấu là đã xử lý
     try {
-      console.log(`Cookie Generator: Đang đóng tab ${tab.id}`);
-      await chrome.tabs.remove(tab.id);
-      console.log(`Cookie Generator: Đã đóng tab ${tab.id}`);
+      console.log(`Cookie Generator: Đã xử lý xong tab ${tab.id}, giữ tab mở`);
+      
+      // Kiểm tra cài đặt keepTabOpen
+      if (settings.keepTabOpen) {
+        console.log(`[Cookie Generator] Tab ${tab.id} đã được xử lý và sẽ được giữ mở`);
+        
+        // Gửi thông báo đến content script với kiểm tra trước
+        const messageSent = await sendMessageToTab(tab.id, {
+          action: "processing_completed",
+          message: "Xử lý hoàn tất! Tab này sẽ được giữ mở theo cài đặt của bạn."
+        });
+        
+        // Nếu gửi tin nhắn thành công và cài đặt hiển thị tab đang hoạt động được bật
+        if (messageSent && settings.showActiveTab) {
+          await chrome.tabs.update(tab.id, { active: true });
+        }
+      } else {
+        // Đóng tab như cũ
+        try {
+          await chrome.tabs.remove(tab.id);
+        } catch (error) {
+          console.error(`[Cookie Generator] Lỗi khi đóng tab: ${error.message}`);
+        }
+      }
     } catch (tabError) {
-      console.error(`Cookie Generator: Lỗi khi đóng tab ${tab.id}`, tabError);
-      // Vẫn tiếp tục xử lý các URL khác ngay cả khi không đóng được tab
+      console.error(`Cookie Generator: Lỗi khi xử lý tab sau khi hoàn thành ${tab.id}`, tabError);
+      // Vẫn tiếp tục xử lý các URL khác 
     }
     
     // Đánh dấu URL đã được truy cập
@@ -489,7 +573,7 @@ async function processNextUrl() {
 
 // Lắng nghe tin nhắn từ popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Tin nhắn nhận được:", message);
+  console.log(`Cookie Generator: Nhận message: ${message.action}`);
   
   if (message.action === 'start_visits') {
     if (processing) {
@@ -512,10 +596,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     processedCount = 0;
     
     console.log("Bắt đầu xử lý URLs:", message.urls);
-    sendResponse({ success: true });
     
-    // Bắt đầu xử lý
-    processNextUrl();
+    // Tải cài đặt AI từ storage để chuẩn bị gửi cho content script
+    chrome.storage.local.get([
+      "enableHumanSimulation",
+      "simulationIntensity",
+      "simulationTime",
+      "fillForms",
+      "mouseMovement",
+      "scrollBehavior"
+    ], (aiSettings) => {
+      console.log("Đã tải cài đặt AI:", aiSettings);
+      
+      // Lưu cài đặt AI vào biến tạm thời để sử dụng sau
+      chrome.storage.local.set({ 
+        "tempAISettings": aiSettings 
+      }, () => {
+        console.log("Đã lưu cài đặt AI tạm thời");
+        
+        // Trả lời thành công cho popup
+        sendResponse({ success: true });
+        
+        // Bắt đầu xử lý
+        processNextUrl();
+      });
+    });
+    
     return true;
   }
   
@@ -590,5 +696,118 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
+  if (message.action === "update_settings") {
+    // Cập nhật cài đặt
+    console.log(`[Cookie Generator] Cập nhật cài đặt:`, message.settings);
+    
+    if (message.settings.hasOwnProperty("blockMedia")) {
+      settings.blockMedia = message.settings.blockMedia;
+    }
+    
+    if (message.settings.hasOwnProperty("showActiveTab")) {
+      settings.showActiveTab = message.settings.showActiveTab;
+    }
+    
+    if (message.settings.hasOwnProperty("keepTabOpen")) {
+      settings.keepTabOpen = message.settings.keepTabOpen;
+    }
+    
+    // Lưu cài đặt vào storage
+    chrome.storage.local.set(settings, () => {
+      console.log(`[Cookie Generator] Đã lưu cài đặt:`, settings);
+    });
+    
+    sendResponse({ success: true });
+    return true;
+  }
+  
+  if (message.action === "get_state") {
+    console.log("Gửi trạng thái hiện tại");
+    sendResponse({
+      status: {
+        status: isPaused ? 'paused' : (processing ? 'processing' : 'ready'),
+        message: currentUrl ? `Đang xử lý: ${currentUrl}` : (processing ? "Đang xử lý..." : "Sẵn sàng"),
+        currentUrl: currentUrl
+      },
+      isRunning: processing,
+      isPaused: isPaused,
+      progress: {
+        processed: processedCount,
+        errors: errorCount,
+        remaining: urlQueue.length
+      },
+      stats: {
+        processed: processedCount,
+        errors: errorCount,
+        remaining: urlQueue.length
+      }
+    });
+    return true;
+  }
+  
+  if (message.action === "open_options") {
+    console.log("Cookie Generator: Mở trang tùy chọn");
+    
+    try {
+      // Mở trang tùy chọn của extension
+      chrome.runtime.openOptionsPage(() => {
+        console.log("Cookie Generator: Đã mở trang tùy chọn");
+        
+        // Nếu yêu cầu mở tab cụ thể (cookies)
+        if (message.data && message.data.tab) {
+          // Lưu tab cần mở vào storage để options page có thể đọc
+          chrome.storage.local.set({ activeOptionsTab: message.data.tab }, () => {
+            console.log(`Cookie Generator: Đã thiết lập tab hoạt động: ${message.data.tab}`);
+          });
+        }
+      });
+      
+      sendResponse({ success: true });
+    } catch (error) {
+      console.error("Cookie Generator: Lỗi khi mở trang tùy chọn", error);
+      sendResponse({ success: false, error: error.message });
+    }
+    
+    return true;
+  }
+  
+  if (message.action === 'update_webhook_settings') {
+    console.log('Cập nhật cài đặt Discord webhook:', message.data);
+    
+    chrome.storage.local.set({
+      'webhook_url': message.data.webhookUrl || '',
+      'auto_export_discord': message.data.autoExport || false
+    }, function() {
+      console.log('Đã lưu cài đặt Discord webhook');
+      sendResponse({ success: true });
+    });
+    
+    return true; // Giữ kết nối mở cho sendResponse không đồng bộ
+  }
+  
   return false;
+});
+
+// Khởi tạo storage
+chrome.runtime.onInstalled.addListener(function() {
+  // ... existing code ...
+  
+  // Thêm cài đặt mặc định cho Discord Webhook
+  chrome.storage.local.get(['webhook_url', 'auto_export_discord'], function(result) {
+    const defaults = {};
+    
+    if (result.webhook_url === undefined) {
+      defaults.webhook_url = '';
+    }
+    
+    if (result.auto_export_discord === undefined) {
+      defaults.auto_export_discord = false;
+    }
+    
+    if (Object.keys(defaults).length > 0) {
+      chrome.storage.local.set(defaults, function() {
+        console.log('Cookie Generator: Đã khởi tạo cài đặt Discord webhook mặc định');
+      });
+    }
+  });
 });
