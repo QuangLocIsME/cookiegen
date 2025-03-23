@@ -225,6 +225,38 @@
       font-size: 13px;
       color: #666;
     }
+    
+    .slider {
+      width: 100%;
+      height: 5px;
+      border-radius: 5px;
+      background: #d3d3d3;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #4CAF50;
+      cursor: pointer;
+    }
+    
+    .slider::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #4CAF50;
+      cursor: pointer;
+    }
+    
+    #simulation-time-value {
+      margin-left: 10px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -300,6 +332,43 @@
     </div>
   </div>
   
+  <section id="ai-settings" class="settings-section">
+    <h2>Tùy chọn AI & Mô phỏng</h2>
+    <div class="option-row">
+      <label for="enable-human-simulation">Bật mô phỏng hành vi người dùng:</label>
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="enable-human-simulation" checked>
+        <label for="enable-human-simulation" class="toggle"></label>
+      </div>
+    </div>
+    <div class="option-row">
+      <label for="simulation-intensity">Mức độ mô phỏng:</label>
+      <select id="simulation-intensity">
+        <option value="low">Thấp (ít tương tác)</option>
+        <option value="medium" selected>Trung bình</option>
+        <option value="high">Cao (nhiều tương tác, điền form)</option>
+      </select>
+    </div>
+    <div class="option-row">
+      <label for="simulation-time">Thời gian mô phỏng (giây):</label>
+      <input type="range" id="simulation-time" min="10" max="60" value="25" class="slider">
+      <span id="simulation-time-value">25</span>
+    </div>
+    <div class="option-row">
+      <label for="fill-forms">Tự động điền form:</label>
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="fill-forms" checked>
+        <label for="fill-forms" class="toggle"></label>
+      </div>
+    </div>
+    <p class="setting-description">Mô phỏng hành vi người dùng giúp giảm nguy cơ bị phát hiện là bot bằng cách tạo ra các tương tác giống người thật như di chuyển chuột, cuộn trang, và điền form một cách tự nhiên.</p>
+  </section>
+  
   <script src="options.js"></script>
+  <script>
+    document.getElementById('simulation-time').addEventListener('input', function() {
+      document.getElementById('simulation-time-value').textContent = this.value;
+    });
+  </script>
 </body>
 </html>

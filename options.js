@@ -220,4 +220,53 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   });
+
+  // Thêm vào hàm loadSettings
+  function loadSettings() {
+    chrome.storage.local.get({
+      // Các option hiện có
+      urls: [],
+      urlInput: '',
+      delay: 2000,
+      blockMedia: false,
+      autoStart: false,
+      
+      // Thêm các option AI mới
+      enableHumanSimulation: true,
+      simulationIntensity: 'medium',
+      simulationTime: 25,
+      fillForms: true
+      
+    }, function(items) {
+      // Các code hiện có để load các option cũ
+      
+      // Load các option AI mới
+      document.getElementById('enable-human-simulation').checked = items.enableHumanSimulation;
+      document.getElementById('simulation-intensity').value = items.simulationIntensity;
+      document.getElementById('simulation-time').value = items.simulationTime;
+      document.getElementById('simulation-time-value').textContent = items.simulationTime;
+      document.getElementById('fill-forms').checked = items.fillForms;
+    });
+  }
+
+  // Thêm vào hàm saveSettings
+  function saveSettings() {
+    // Lấy các giá trị AI mới
+    const enableHumanSimulation = document.getElementById('enable-human-simulation').checked;
+    const simulationIntensity = document.getElementById('simulation-intensity').value;
+    const simulationTime = document.getElementById('simulation-time').value;
+    const fillForms = document.getElementById('fill-forms').checked;
+    
+    chrome.storage.local.set({
+      // Các option hiện có
+      
+      // Thêm các option AI mới
+      enableHumanSimulation: enableHumanSimulation,
+      simulationIntensity: simulationIntensity,
+      simulationTime: parseInt(simulationTime),
+      fillForms: fillForms
+    }, function() {
+      showMessage('Đã lưu thiết lập.', 'success');
+    });
+  }
 });
